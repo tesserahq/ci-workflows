@@ -2,6 +2,15 @@ name: Dependabot auto-merge
 
 on:
   workflow_call:
+    inputs:
+      required-checks:
+        description: Newline-separated check names that must pass on the Dependabot head commit before auto-merge is enabled.
+        required: false
+        type: string
+        default: |
+          code-quality
+          typecheck
+          tests / tests
 
 permissions: {}
 
@@ -23,7 +32,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Wait for portal validation checks
+      - name: Wait for required checks
         if: >-
           (
             steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
@@ -35,10 +44,17 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          REQUIRED_CHECKS: ${{ inputs.required-checks }}
         run: |
           set -euo pipefail
 
-          for check_name in "code-quality" "typecheck" "tests / tests"; do
+          if [[ -z "$(echo "$REQUIRED_CHECKS" | tr -d '[:space:]')" ]]; then
+            echo "No required checks were configured; refusing to enable auto-merge." >&2
+            exit 1
+          fi
+
+          while IFS= read -r check_name; do
+            [[ -z "$check_name" ]] && continue
             check_passed=false
 
             for attempt in $(seq 1 180); do
@@ -74,7 +90,7 @@ jobs:
               echo "Timed out waiting for $check_name." >&2
               exit 1
             fi
-          done
+          done <<< "$REQUIRED_CHECKS"
 
           current_head_sha=$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')
           if [[ "$current_head_sha" != "$HEAD_SHA" ]]; then
