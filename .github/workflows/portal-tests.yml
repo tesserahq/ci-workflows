@@ -1,0 +1,72 @@
+name: Portal tests
+
+on:
+  workflow_call:
+    inputs:
+      bun-version:
+        description: Bun version from the calling portal's .tool-versions file
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ inputs.bun-version }}
+
+      - name: Check for a test script
+        id: test-script
+        shell: bash
+        run: |
+          if node -e 'process.exit(Number(!require("./package.json").scripts?.test))'; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "No test script is defined in package.json; tests were skipped." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Check for test files
+        id: test-files
+        if: steps.test-script.outputs.available == 'true'
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs')
+          const path = require('node:path')
+          const ignored = new Set(['.git', 'node_modules', '.react-router', 'build', 'dist', 'coverage'])
+          const testFile = /\.(test|spec)\.[cm]?[jt]sx?$/i
+
+          function hasTests(directory, inTestsDirectory = false) {
+            for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+              if (entry.isDirectory()) {
+                if (!ignored.has(entry.name) && hasTests(path.join(directory, entry.name), inTestsDirectory || entry.name === '__tests__')) return true
+              } else if (entry.isFile() && (/\.[cm]?[jt]sx?$/i.test(entry.name) && (testFile.test(entry.name) || inTestsDirectory))) {
+                return true
+              }
+            }
+            return false
+          }
+
+          const available = hasTests('.')
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `available=${available}\n`)
+          if (!available) {
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, 'No test files found; tests were skipped. Add *.test.* or *.spec.* files (or files under __tests__) to enable this job.\n')
+          }
+          NODE
+
+      - name: Install dependencies
+        if: steps.test-script.outputs.available == 'true' && steps.test-files.outputs.available == 'true'
+        run: bun install --frozen-lockfile
+
+      - name: Run tests
+        if: steps.test-script.outputs.available == 'true' && steps.test-files.outputs.available == 'true'
+        run: bun run test
