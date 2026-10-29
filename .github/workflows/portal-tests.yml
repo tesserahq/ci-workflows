@@ -31,7 +31,7 @@ jobs:
             echo "available=true" >> "$GITHUB_OUTPUT"
           else
             echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "No test script is defined in package.json; tests were skipped." >> "$GITHUB_STEP_SUMMARY"
+            echo "No test script is defined in package.json. Portals must define a \"test\" script." >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Check for a build script
@@ -70,9 +70,25 @@ jobs:
           const available = hasTests('.')
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `available=${available}\n`)
           if (!available) {
-            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, 'No test files found; tests were skipped. Add *.test.* or *.spec.* files (or files under __tests__) to enable this job.\n')
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, 'No test files found. Add *.test.* or *.spec.* files (or files under __tests__).\n')
           }
           NODE
+
+      - name: Require tests
+        shell: bash
+        env:
+          TEST_SCRIPT: ${{ steps.test-script.outputs.available }}
+          TEST_FILES: ${{ steps.test-files.outputs.available }}
+        run: |
+          if [[ "$TEST_SCRIPT" != "true" ]]; then
+            echo "::error::No test script in package.json. Every portal must define one." >&2
+            exit 1
+          fi
+
+          if [[ "$TEST_FILES" != "true" ]]; then
+            echo "::error::No test files found. Every portal must have tests." >&2
+            exit 1
+          fi
 
       - name: Install dependencies
         if: >-
@@ -88,5 +104,4 @@ jobs:
         run: bun run build
 
       - name: Run tests
-        if: steps.test-script.outputs.available == 'true' && steps.test-files.outputs.available == 'true'
         run: bun run test
