@@ -58,7 +58,7 @@ Rules:
 
 - **Check names are fixed by the caller template.** A reusable workflow's check run name is `<caller job id> / <called job name>`. The caller template fixes the job id as `ci`, so the checks are always `ci / lint`, `ci / typecheck`, `ci / tests`, and `ci / build`. The gate and the rulesets match on these full names. A caller that renames the job then fails loudly, instead of the gate waiting until its timeout.
 - **A missing check counts as failing, never as skipped.** Branch protection and rulesets treat a skipped check as passing. So the job must always run and conclude `failure` when a portal has no test script or no test files. The portal must opt out explicitly (open question 1), not through a silent `if:` skip. This means `portal-tests.yml` needs a change: its current `if:` steps let the job conclude `success` with no tests.
-- **Rulesets are the primary control.** Branch protection, or an org ruleset, requires these checks wherever the plan allows it. Repos that cannot require checks rely on the auto-merge gate, so the gate must check the same full names.
+- **Branch protection is the primary control.** Each portal's `main` branch protection requires the `ci / *` checks. The org is on the free plan, so org rulesets are unavailable. Per-repo branch protection works because all portals are public. Each repo has to be configured individually. The auto-merge gate must check the same full names, so it still works if a repo's protection is missing.
 
 ### 2. Grouping: a shared convention in each portal's `dependabot.yml`
 
@@ -103,7 +103,7 @@ The shared workflow writes a single `eligible` output. Both the wait step and th
 2. Verify the PR head still equals `HEAD_SHA`.
 3. Enable auto-merge bound to that SHA, for example `gh pr merge --auto --squash --match-head-commit "$HEAD_SHA" "$PR_URL"`. Confirm `gh` enforces the match when `--auto` is set.
 
-Where required checks are enforced by a ruleset, GitHub re-gates auto-merge on any new push, so the race described above only applies to repos that cannot require checks. The SHA pin is kept as defense in depth. It does not replace the ruleset.
+Where required checks are enforced by branch protection, GitHub re-gates auto-merge on any new push, so the race described above only applies to repos without it. The SHA pin is kept as defense in depth. It does not replace branch protection.
 
 Supply chain, for majors that are eligible under policy:
 
@@ -134,7 +134,7 @@ Revisit this decision if the policy rules outgrow the workflow, or if the merge 
 ## Rollout
 
 1. **Pilot on one portal.** Add the build job to the reusable workflow, the policy file, and the grouping config. Confirm on a real Dependabot PR that: the build is gated, the check names are `ci / <job>`, the policy evaluates each entry in `updated-dependencies-json` to the expected `eligible` value, and the merge is bound to the checked SHA.
-2. **Fix the gaps before widening.** Make missing checks fail, not pass (open question 1). Enable the ruleset or branch protection where the plan allows it. Confirm the `updated-dependencies-json` shape on a real grouped PR (open question 2).
+2. **Fix the gaps before widening.** Make missing checks fail, not pass (open question 1). Enable branch protection requiring the `ci / *` checks on each portal's `main`. Confirm the `updated-dependencies-json` shape on a real grouped PR (open question 2).
 3. **Roll out to the other portals.** Each portal gets the same caller workflow, group config, and policy reference. No per-portal logic.
 4. **Review after one cycle.** Count auto-merged updates, reverts, and `needs-human` items. Adjust policy based on those numbers.
 
@@ -152,11 +152,11 @@ Resolved:
 - **No-tests behavior (decided).** A portal with no test script or files fails the gate and must opt out explicitly through its policy file. `dev-tooling` gets no exemption.
 - **Policy ownership (decided).** The repo owner maintains the shared default policy. The team of three portal developers changes it through reviewed PRs.
 - **Dependabot vs. Renovate (decided).** Stay on Dependabot. See Alternatives considered.
+- **Required checks (decided).** Per-repo branch protection, not org rulesets. The org is on the free plan, where org rulesets are unavailable. The portals are public, so branch protection is available on each one.
 
 Open:
 
 1. **`updated-dependencies-json` shape.** The per-dependency design assumes this output lists every dependency in a grouped PR with its update type and dependency type. Confirm on a real grouped PR during the pilot.
-2. **Org ruleset or per-repo branch protection** for the required checks? Depends on plan limits for each repo. Determines how often the SHA pin is the only protection.
 
 ## Decision on PR #5
 
