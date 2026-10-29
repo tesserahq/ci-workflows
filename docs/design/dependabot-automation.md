@@ -147,11 +147,16 @@ Revisit this decision if the policy rules outgrow the workflow, or if the merge 
 
 ## Open questions
 
-1. **No-tests behavior.** Proposed: a portal with no test script or files fails the gate and must opt out explicitly through its policy file. Should `dev-tooling` be exempt from that requirement? Decide before the pilot.
-2. **`updated-dependencies-json` shape.** The per-dependency design assumes this output lists every dependency in a grouped PR with its update type and dependency type. Confirm on a real grouped PR during the pilot.
-3. **Who owns the policy file?** Proposed: platform team owns the shared default, portal teams can override with a reviewed PR.
-4. **Org ruleset or per-repo branch protection** for the required checks? Depends on plan limits for each repo. Determines how often the SHA pin is the only protection.
-5. **Renovate.** Confirm the decision to stay on Dependabot (see Alternatives considered).
+Resolved:
+
+- **No-tests behavior (decided).** A portal with no test script or files fails the gate and must opt out explicitly through its policy file. `dev-tooling` gets no exemption.
+- **Policy ownership (decided).** The repo owner maintains the shared default policy. The team of three portal developers changes it through reviewed PRs.
+- **Dependabot vs. Renovate (decided).** Stay on Dependabot. See Alternatives considered.
+
+Open:
+
+1. **`updated-dependencies-json` shape.** The per-dependency design assumes this output lists every dependency in a grouped PR with its update type and dependency type. Confirm on a real grouped PR during the pilot.
+2. **Org ruleset or per-repo branch protection** for the required checks? Depends on plan limits for each repo. Determines how often the SHA pin is the only protection.
 
 ## Decision on PR #5
 
