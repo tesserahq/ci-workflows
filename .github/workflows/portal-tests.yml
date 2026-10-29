@@ -34,6 +34,17 @@ jobs:
             echo "No test script is defined in package.json; tests were skipped." >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      - name: Check for a build script
+        id: build-script
+        shell: bash
+        run: |
+          if node -e 'process.exit(Number(!require("./package.json").scripts?.build))'; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "No build script is defined in package.json; the build was skipped." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Check for test files
         id: test-files
         if: steps.test-script.outputs.available == 'true'
@@ -64,8 +75,17 @@ jobs:
           NODE
 
       - name: Install dependencies
-        if: steps.test-script.outputs.available == 'true' && steps.test-files.outputs.available == 'true'
+        if: >-
+          steps.build-script.outputs.available == 'true' ||
+          (
+            steps.test-script.outputs.available == 'true' &&
+            steps.test-files.outputs.available == 'true'
+          )
         run: bun install --frozen-lockfile
+
+      - name: Build app
+        if: steps.build-script.outputs.available == 'true'
+        run: bun run build
 
       - name: Run tests
         if: steps.test-script.outputs.available == 'true' && steps.test-files.outputs.available == 'true'
