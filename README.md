@@ -25,7 +25,27 @@ jobs:
       bun-version: "1.x"
 ```
 
-Private repositories need this repo's Actions access setting to allow callers from the organization.
+This repo is public, so any portal can call it.
+
+### Dependabot auto-merge
+
+The caller must grant `checks: read`, because the gate reads check runs. Pass the check names that must pass as `required-checks`, one per line. The default is the TypeScript set (`code-quality`, `typecheck`, `tests / tests`). An empty list fails closed.
+
+```yaml
+jobs:
+  auto-merge:
+    if: github.actor == 'dependabot[bot]'
+    permissions:
+      checks: read
+      contents: write
+      pull-requests: write
+    uses: tesserahq/ci-workflows/.github/workflows/dependabot-auto-merge.yml@<tag-or-sha>
+    with:
+      required-checks: |
+        build
+```
+
+Known gap: `gh pr merge --auto` is not bound to the checked commit. A push between the check and the merge can still be merged. Adding `--match-head-commit` should close it, but this has not been verified against `gh`'s `--auto` behavior.
 
 ## Status
 
