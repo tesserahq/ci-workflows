@@ -2,7 +2,7 @@
 
 Status: pilot in progress
 Owner: platform / portals
-Related: `tesserahq/ci-workflows` (shared workflows, `v0.1.0`), `tesserahq/togly-portal` PR #39 (pilot), `tesserahq/togly-portal` PR #37 (auto-merge disabled), PR #5 in `tesserahq/.github` (closed)
+Related: `tesserahq/ci-workflows` (shared workflows, `v0.1.0`), `tesserahq/togly-portal` PR #39 (pilot, merged), `tesserahq/togly-portal` PR #37 (merged manually), PR #5 in `tesserahq/.github` (closed)
 
 ## Problem
 
@@ -35,7 +35,7 @@ Non-goals:
 
 - The shared test workflow (`portal-tests.yml`) runs the build when a `build` script exists. This was added in `tesserahq/.github` #6, and `ci-workflows` includes it as of `5c53674`. The build is therefore already gated inside the `tests` check. A separate `build` job is optional, not required.
 - The shared auto-merge gate auto-merges patch and minor updates after `code-quality`, `typecheck`, and `tests / tests` pass. Major tooling eligibility from PR #5 is not merged. PR #5 is closed.
-- **Observed on togly-portal PR #37:** auto-merge was enabled by an older gate pin (`ba740570`) that has no wait step. The gate went straight from metadata to `gh pr merge --auto`, while `typecheck` was failing. Auto-merge is now disabled on #37. The gate also ignored `maintainer-changes: true` in that group. See Policy below.
+- **Observed on togly-portal PR #37:** auto-merge was enabled by an older gate pin (`ba740570`) that has no wait step. The gate went straight from metadata to `gh pr merge --auto`, while `typecheck` was failing. Auto-merge was disabled, and #37 was later merged manually after a fix commit. The gate also ignored `maintainer-changes: true` in that group. See Policy below.
 - Between the head-SHA check and `gh pr merge --auto`, a new commit can land. Auto-merge is then enabled on a commit that was never checked. Branch protection prevents the merge on repos that require checks. The race matters on repos without it.
 - `portal-tests.yml` reports success when a portal has no test script or no test files, because its steps are skipped with `if:` and the job still concludes `success`. A portal with no tests therefore passes the gate trivially. Open question 1 is about this behavior.
 
@@ -146,7 +146,7 @@ Revisit this decision if the policy rules outgrow the workflow, or if the merge 
 
 ## Rollout
 
-1. **Pilot on togly-portal.** In progress. `tests.yml`, `dependabot-auto-merge.yml`, and the formatting check are on `chore/use-ci-workflows`, PR #39, pinned to `ci-workflows` `v0.1.0` (`5c53674`). The first run passed `code-quality`, `typecheck`, and `tests / tests`. Repository formatting already passes `format:check`, so no reformatting is needed. Still to confirm: the gate's behavior on a real grouped Dependabot PR, including the `updated-dependencies-json` shape, the `maintainer-changes` rule, and the no-auto-merge-on-failure behavior seen on #37.
+1. **Pilot on togly-portal.** PR #39 merged at 16:14 UTC. `main` now calls `ci-workflows` `v0.1.0` (`5c53674`) for the tests and auto-merge workflows, and runs `format:check`. The repository already passes `format:check`, so no reformatting was needed. Still to confirm on a live grouped Dependabot PR: the `updated-dependencies-json` shape, the `maintainer-changes` rule, and no auto-merge on failure. PR #37 showed the gate was not doing these checks.
 2. **Fix the gaps before widening.** Make missing checks fail, not pass (open question 1). Add branch protection requiring the validation checks on each portal's `main`.
 3. **Roll out to the other portals.** Each portal gets the same caller workflow, group config, and policy reference. No per-portal logic.
 4. **Review after one cycle.** Count auto-merged updates, reverts, and `needs-human` items. Adjust policy based on those numbers.
