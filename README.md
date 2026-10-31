@@ -17,6 +17,16 @@ See [`docs/design/dependabot-automation.md`](docs/design/dependabot-automation.m
 
 Portals call these workflows at a pinned tag or commit SHA, not `main`, so a change here does not silently affect every portal.
 
+### Canceling superseded runs
+
+Concurrency belongs in each calling workflow. These reusable workflows run as jobs inside the caller's run, so concurrency configured here cannot cancel the caller's other jobs (such as typecheck or code quality). Add a top-level group to the caller to cancel stale pull request runs while allowing default-branch and release runs to finish:
+
+```yaml
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || (startsWith(github.ref, 'refs/heads/') && github.ref != format('refs/heads/{0}', github.event.repository.default_branch)) }}
+```
+
 ```yaml
 jobs:
   tests:
